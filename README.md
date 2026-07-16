@@ -1,4 +1,4 @@
-# RuralMed (Innoveda) — System Requirements
+# RuralMed (Innoveda)
 
 ---
 
