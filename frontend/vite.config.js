@@ -116,7 +116,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
 
         // Disable devtools in production
-        disableDevtools: true,
+        disableDevLogs: true,
       },
 
       // Dev options

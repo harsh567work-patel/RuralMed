@@ -1,5 +1,5 @@
 // API service for communicating with backend
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
 const REQUEST_TIMEOUT = 10000; // 10 seconds
 
 /**
