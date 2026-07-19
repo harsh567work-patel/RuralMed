@@ -32,7 +32,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-app.use(express.static(path.join(__dirname, '../dist')));
 app.use(requestLogger);
 
 // Apply general API rate limiter
@@ -54,11 +53,6 @@ app.use('/api/stats', statsRoutes);
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Serve React app for all non-API routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Error handling middleware (must be last)

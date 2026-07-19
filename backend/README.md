@@ -45,7 +45,31 @@ Server runs on `http://localhost:5000`
 
 ## Database
 
-Uses SQLite (ruralmed.db). Tables auto-created on startup.
+Uses SQLite (`ruralmed.db`). Tables auto-created on startup.
+
+## Deployment
+
+This backend should be hosted separately from Vercel on a Node-friendly service that supports a local filesystem.
+
+Recommended platforms:
+- Render
+- Railway
+- Fly.io
+- DigitalOcean App Platform
+
+Example deployment settings:
+
+- Root folder: `backend/`
+- Node version: `18` or later
+- Install command: `npm install`
+- Start command: `npm start`
+- Environment variables:
+  - `JWT_SECRET`
+  - `NODE_ENV=production`
+  - `PORT=5000`
+  - `DB_PATH` (optional, e.g. `/tmp/ruralmed.db`)
+
+The backend creates `ruralmed.db` automatically by default. If your host uses an ephemeral filesystem, you should set `DB_PATH` to a writable path provided by the platform.
 
 ## Auth
 

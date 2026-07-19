@@ -143,3 +143,45 @@ Rural healthcare centers face:
 
 
 Still working over backend , in devolpment phase
+
+---
+
+## Deployment Guide
+
+### Frontend: Vercel
+
+This repository uses `frontend/` as the Vercel app root.
+
+- Root Directory: `frontend`
+- Framework: Vite
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Environment Variable: `VITE_API_BASE`
+
+Set `VITE_API_BASE` to the backend URL, for example:
+
+```text
+https://your-backend-host.example.com/api
+```
+
+### Backend: separate host
+
+The backend is an Express app with SQLite and should be hosted on a Node-friendly platform that supports a persistent filesystem.
+
+Recommended hosts:
+- Render
+- Railway
+- Fly.io
+- DigitalOcean App Platform
+
+Backend environment variables:
+
+- `JWT_SECRET` = secure production secret
+- `NODE_ENV` = `production`
+- `PORT` = `5000` (or host-provided port)
+- `DB_PATH` = optional path to the SQLite database file
+
+The backend auto-creates `ruralmed.db` on startup by default and seeds demo data.
+
+> Do not deploy the backend as a Vercel app. Vercel is best for static/front-end builds and serverless functions, not a persistent SQLite-based Express service.
+
