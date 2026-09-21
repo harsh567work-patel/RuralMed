@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 # - Node.js: >= 18.0.0 (Recommended: LTS v20.x or v22.x)
 # - npm: >= 9.0.0 (or yarn >= 1.22.x / pnpm >= 8.x)
-# - SQLite: >= 3.35.0 (Bundled via sqlite3 Node binding, CLI optional)
+# - PostgreSQL: >= 14.0 (Local instance or hosted e.g. Neon, Supabase, RDS)
 # - Git: >= 2.30.0
 # - Target Browsers: Chrome 90+, Edge 90+, Firefox 90+, Safari 15+ (Requires IndexedDB, Web Workers, PWA/ServiceWorker support)
 
@@ -17,7 +17,7 @@
 # Location: ./backend/package.json
 # -----------------------------------------------------------------------------
 express==4.18.2              # Fast, unopinionated minimalist web framework for Node.js
-sqlite3==5.1.6               # Asynchronous, non-blocking SQLite3 bindings
+pg==8.13.1                   # Non-blocking PostgreSQL client and connection pool for Node.js
 jsonwebtoken==9.0.3          # JSON Web Token implementation for user authentication
 bcryptjs==2.4.3              # Optimized bcrypt password hashing library
 cors==2.8.5                  # Middleware to enable Cross-Origin Resource Sharing
@@ -29,31 +29,27 @@ twilio==6.1.0                # Twilio SDK for SMS alerts and WhatsApp clinical n
 # 3. Frontend Dependencies (React / Vite PWA)
 # Location: ./frontend/package.json
 # -----------------------------------------------------------------------------
-react==18.3.1                # React core JavaScript library for building user interfaces
-react-dom==18.3.1            # React package for working with the DOM
-dexie==4.0.0                 # Minimalistic IndexedDB wrapper for offline patient storage
-esc-pos-encoder==3.0.0       # Thermal POS printer bytecode generation for prescriptions
-uuid==11.1.1                 # Cryptographically secure UUID generator for offline patient IDs
+react==18.2.0                # Modern React runtime with concurrent mode support
+react-dom==18.2.0            # React DOM rendering engine
+@vitejs/plugin-react==4.0.0  # Babel-based Fast Refresh plugin for Vite
+vite==4.3.9                  # Ultra-fast ESM-based frontend dev server and bundler
+lucide-react==0.263.1        # Clean, accessible Feather-based icons for healthcare UI
+dexie==3.2.4                 # Minimal IndexedDB wrapper for offline clinical data caching
+dexie-react-hooks==1.1.6     # React hooks (useLiveQuery) for reactive offline data
+@powersync/web==2.0.1        # Offline-first SQLite sync framework (browser core)
 @powersync/react==2.0.1      # Offline-first SQLite sync framework (React hooks)
-@powersync/web==2.3.0        # PowerSync client library for Web & OPFS/IndexedDB
-
-# Frontend Development Dependencies
-vite==5.4.8                  # Next generation frontend tooling & development server
-@vitejs/plugin-react==4.3.1  # Official Babel/React Fast Refresh plugin for Vite
-vite-plugin-pwa==1.3.0       # Progressive Web App plugin with Workbox service worker caching
-ngrok==5.0.0-beta.2          # Reverse proxy tool to expose local development server for testing
 
 # -----------------------------------------------------------------------------
 # 4. Database Specifications
 # Location: ./database/
 # -----------------------------------------------------------------------------
-# Engine: SQLite 3
-# File Path: ./database/ruralmed.db
-# Client Storage: Browser IndexedDB via Dexie (Offline-First cache)
+# Engine: PostgreSQL 14+
+# Connection: DATABASE_URL (or PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE)
+# Client Storage: Browser IndexedDB via Dexie / PowerSync (Offline-First cache)
 # Features Required:
-#   - PRAGMA foreign_keys = ON;
-#   - Auto-increment primary keys
-#   - ISO 8601 UTC DATETIME formatting
+#   - Relational integrity with foreign key constraints
+#   - SERIAL / IDENTITY primary keys
+#   - TIMESTAMPTZ formatting
 #   - Multi-column performance indexing
 # Core Tables:
 #   - users         (Healthcare staff accounts, authentication & RBAC)

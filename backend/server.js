@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 // Load environment variables FIRST before importing routes
 dotenv.config();
 
-import { initDatabase, seedDemoData } from './db/init.js';
+import { initDatabase } from './db/init.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
@@ -50,9 +50,10 @@ if (process.env.ENFORCE_HTTPS === 'true') {
 // Apply general API rate limiter
 app.use('/api/', apiLimiter);
 
-// Initialize database and seed demo data (§8.7)
-initDatabase();
-seedDemoData();
+// Initialize PostgreSQL database schema
+initDatabase().catch((err) => {
+  console.warn('⚠️ PostgreSQL initialization warning:', err.message);
+});
 
 // Routes
 app.use('/api/auth', authRoutes);

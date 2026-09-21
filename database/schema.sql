@@ -1,28 +1,26 @@
 -- =============================================================================
--- RuralMed Database Schema (SQLite)
+-- RuralMed Database Schema (PostgreSQL)
 -- Offline-First Rural Healthcare Management System
 -- =============================================================================
-
-PRAGMA foreign_keys = ON;
 
 -- -----------------------------------------------------------------------------
 -- 1. Users Table (Healthcare providers, doctors, staff)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  facility TEXT NOT NULL,
-  role TEXT DEFAULT 'doctor',
-  provider TEXT DEFAULT 'local',
-  googleId TEXT,
-  lastLoginAt DATETIME,
-  passwordResetToken TEXT,
-  passwordResetExpiresAt DATETIME,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  facility VARCHAR(255) NOT NULL,
+  role VARCHAR(50) DEFAULT 'doctor',
+  provider VARCHAR(50) DEFAULT 'local',
+  googleId VARCHAR(255),
+  lastLoginAt TIMESTAMPTZ,
+  passwordResetToken VARCHAR(255),
+  passwordResetExpiresAt TIMESTAMPTZ,
+  createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   isDeleted INTEGER DEFAULT 0
 );
 
@@ -30,95 +28,89 @@ CREATE TABLE IF NOT EXISTS users (
 -- 2. Patients Table (Demographics, vitals, village origin)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS patients (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
+  id VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
   age INTEGER NOT NULL,
-  gender TEXT NOT NULL,
-  village TEXT NOT NULL,
-  phone TEXT NOT NULL,
+  gender VARCHAR(50) NOT NULL,
+  village VARCHAR(255) NOT NULL,
+  phone VARCHAR(50) NOT NULL,
   lastVisit TEXT,
   diagnosis TEXT,
-  status TEXT DEFAULT 'Active',
-  weight REAL,
+  status VARCHAR(50) DEFAULT 'Active',
+  weight NUMERIC,
   bpSystolic INTEGER,
   bpDiastolic INTEGER,
-  temperature REAL,
+  temperature NUMERIC,
   respiratoryRate INTEGER,
   notes TEXT,
-  createdBy INTEGER NOT NULL,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  isDeleted INTEGER DEFAULT 0,
-  FOREIGN KEY(createdBy) REFERENCES users(id)
+  createdBy INTEGER NOT NULL REFERENCES users(id),
+  createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  isDeleted INTEGER DEFAULT 0
 );
 
 -- -----------------------------------------------------------------------------
 -- 3. Prescriptions Table (Drug orders and dosages)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS prescriptions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  patientId TEXT NOT NULL,
-  doctorId INTEGER NOT NULL,
-  drug TEXT NOT NULL,
-  dosage TEXT NOT NULL,
-  duration TEXT NOT NULL,
-  frequency TEXT,
-  route TEXT,
+  id SERIAL PRIMARY KEY,
+  patientId VARCHAR(255) NOT NULL REFERENCES patients(id),
+  doctorId INTEGER NOT NULL REFERENCES users(id),
+  drug VARCHAR(255) NOT NULL,
+  dosage VARCHAR(255) NOT NULL,
+  duration VARCHAR(255) NOT NULL,
+  frequency VARCHAR(100),
+  route VARCHAR(100),
   quantity INTEGER,
   instructions TEXT,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  isDeleted INTEGER DEFAULT 0,
-  FOREIGN KEY(patientId) REFERENCES patients(id),
-  FOREIGN KEY(doctorId) REFERENCES users(id)
+  createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  isDeleted INTEGER DEFAULT 0
 );
 
 -- -----------------------------------------------------------------------------
 -- 4. Referrals Table (Higher facility escalation and transport)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS referrals (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  patientId TEXT NOT NULL,
-  referredBy INTEGER NOT NULL,
-  facility TEXT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  patientId VARCHAR(255) NOT NULL REFERENCES patients(id),
+  referredBy INTEGER NOT NULL REFERENCES users(id),
+  facility VARCHAR(255) NOT NULL,
   reason TEXT NOT NULL,
-  date TEXT NOT NULL,
-  urgency TEXT DEFAULT 'Routine',
+  date VARCHAR(50) NOT NULL,
+  urgency VARCHAR(50) DEFAULT 'Routine',
   transport TEXT,
   notes TEXT,
-  status TEXT DEFAULT 'Pending',
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  isDeleted INTEGER DEFAULT 0,
-  FOREIGN KEY(patientId) REFERENCES patients(id),
-  FOREIGN KEY(referredBy) REFERENCES users(id)
+  status VARCHAR(50) DEFAULT 'Pending',
+  createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  isDeleted INTEGER DEFAULT 0
 );
 
 -- -----------------------------------------------------------------------------
 -- 5. Feedback Table (Patient / provider feedback)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS feedback (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  userId INTEGER NOT NULL,
-  type TEXT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  userId INTEGER NOT NULL REFERENCES users(id),
+  type VARCHAR(100) NOT NULL,
   message TEXT NOT NULL,
   rating INTEGER,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  isDeleted INTEGER DEFAULT 0,
-  FOREIGN KEY(userId) REFERENCES users(id)
+  createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  isDeleted INTEGER DEFAULT 0
 );
 
 -- -----------------------------------------------------------------------------
 -- 6. Inventory Table (PHC essential medicines and stock levels)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS inventory (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT UNIQUE NOT NULL,
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) UNIQUE NOT NULL,
   stock INTEGER NOT NULL,
   minThreshold INTEGER NOT NULL,
-  unit TEXT DEFAULT 'tablets',
-  lastUpdated DATETIME DEFAULT CURRENT_TIMESTAMP,
+  unit VARCHAR(50) DEFAULT 'tablets',
+  lastUpdated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   isDeleted INTEGER DEFAULT 0
 );
 
@@ -126,14 +118,13 @@ CREATE TABLE IF NOT EXISTS inventory (
 -- 7. Audit Logs Table (HIPAA/clinical audit trail)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS audit_logs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  userId INTEGER,
-  action TEXT NOT NULL,
-  entity TEXT NOT NULL,
-  entityId TEXT,
+  id SERIAL PRIMARY KEY,
+  userId INTEGER REFERENCES users(id),
+  action VARCHAR(100) NOT NULL,
+  entity VARCHAR(100) NOT NULL,
+  entityId VARCHAR(255),
   changes TEXT,
-  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY(userId) REFERENCES users(id)
+  timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- -----------------------------------------------------------------------------
@@ -148,18 +139,3 @@ CREATE INDEX IF NOT EXISTS idx_referrals_referredby ON referrals(referredBy);
 CREATE INDEX IF NOT EXISTS idx_feedback_userid ON feedback(userId);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_userid ON audit_logs(userId);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
-
--- -----------------------------------------------------------------------------
--- Default PHC Essential Medicine Inventory Seed Items
--- -----------------------------------------------------------------------------
-INSERT OR IGNORE INTO inventory (name, stock, minThreshold, unit) VALUES
-  ('Paracetamol 500mg', 120, 50, 'tablets'),
-  ('ORS Sachet', 200, 100, 'sachets'),
-  ('Amoxicillin 500mg', 80, 40, 'tablets'),
-  ('Metformin 500mg', 60, 30, 'tablets'),
-  ('Amlodipine 5mg', 45, 20, 'tablets'),
-  ('Atenolol 50mg', 30, 20, 'tablets'),
-  ('Cotrimoxazole 480mg', 18, 25, 'tablets'),
-  ('Iron + Folic Acid', 150, 60, 'tablets'),
-  ('Zinc Sulphate 20mg', 12, 30, 'tablets'),
-  ('IV Fluid NS 500ml', 8, 15, 'bottles');

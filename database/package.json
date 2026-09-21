@@ -2,8 +2,12 @@
   "name": "ruralmed-database",
   "version": "1.0.0",
   "type": "module",
-  "description": "RuralMed SQLite database module and seed scripts",
+  "description": "RuralMed PostgreSQL database module and schema initialization",
   "scripts": {
-    "seed": "node seed.js"
+    "init": "node seed.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "pg": "^8.13.1"
   }
 }

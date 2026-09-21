@@ -1,15 +1,14 @@
 # RuralMed Database
 
-RuralMed uses SQLite for lightweight, fast, serverless local data persistence, coupled with Dexie (IndexedDB) on the frontend for offline-first clinical workflows.
+RuralMed uses **PostgreSQL** for robust, scalable relational data persistence on the backend, coupled with offline-first clinical workflows on the frontend.
 
 ## Directory Contents
 
 | File | Purpose |
 |------|---------|
-| `schema.sql` | Pure DDL SQL script defining all tables, relations, and indexes |
-| `init.js` | Node.js connection manager and schema migration module |
-| `seed.js` | Standalone seed runner for demo users, patients, and prescriptions |
-| `ruralmed.db` | Primary SQLite database binary file |
+| `schema.sql` | Pure DDL SQL script defining all PostgreSQL tables, relations, and indexes |
+| `init.js` | Node.js connection manager (`pg.Pool`), query translator, and schema initialization module |
+| `seed.js` | Standalone schema initialization runner |
 
 ## Tables Overview
 
@@ -33,12 +32,13 @@ RuralMed uses SQLite for lightweight, fast, serverless local data persistence, c
 - `idx_audit_logs_userid` on `audit_logs(userId)`
 - `idx_audit_logs_timestamp` on `audit_logs(timestamp)`
 
-## How to Initialize and Seed
+## How to Initialize Schema
+
+Ensure PostgreSQL is running and your `DATABASE_URL` or `PG*` environment variables are configured in `backend/.env`.
 
 From the project root:
 
 ```bash
-# Initialize and seed database
 node database/seed.js
 ```
 
@@ -48,8 +48,3 @@ Or from the backend:
 cd backend
 npm run db:init
 ```
-
-Default credentials seeded:
-- **Doctor Username**: `demo_doctor`
-- **Password**: `demo123`
-- **Facility**: `PHC Ramnagar`
