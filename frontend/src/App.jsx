@@ -10,12 +10,14 @@ import SignupPage       from './pages/SignupPage';
 import HomePage         from './pages/HomePage';
 import PatientPage      from './pages/PatientPage';
 import PrescriptionPage from './pages/PrescriptionPage';
+import AppointmentPage    from './pages/AppointmentPage';
 import ReferPage        from './pages/ReferPage';
 import FeedbackPage     from './pages/FeedbackPage';
 import SummaryPage      from './pages/SummaryPage';
 import NotFoundPage     from './pages/NotFoundPage';
 
-import { patients as patientsAPI } from './services/api';
+import { auth as authAPI, setAuthSession, getStoredAuthSession, clearAuthSession } from './services/api';
+import { usePatientsQuery } from './db/usePatientsQuery';
 
 export default function App() {
   const [authPage,     setAuthPage]     = useState('login');
@@ -23,38 +25,54 @@ export default function App() {
   const [page,         setPage]         = useState('home');
   const [sidebarOpen,  setSidebarOpen]  = useState(true);
   const [darkMode,     setDarkMode]     = useState(false);
-  const [patients,     setPatients]     = useState([]);
   const [toasts,       setToasts]       = useState([]);
   const [loading,      setLoading]      = useState(true);
-  const [pageLoading,  setPageLoading]  = useState(false);
-  const [lastSynced,   setLastSynced]   = useState(null);
+
+  // Reactive read from local SQLite — re-renders automatically when PowerSync syncs
+  const { patients, isLoading: pageLoading } = usePatientsQuery();
 
   // Valid pages that can be navigated to
-  const VALID_PAGES = ['home', 'patients', 'prescription', 'refer', 'feedback', 'summary'];
+  const VALID_PAGES = ['home', 'patients', 'appointment', 'prescription', 'refer', 'feedback', 'summary'];
 
-  // Load user from localStorage on mount
+  // Load and verify user from storage on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const userData = JSON.parse(localStorage.getItem('user') || 'null');
-        if (userData) setUser(userData);
-      } catch (err) {
-        // localStorage corrupted, clear it
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        console.error('Failed to parse user from localStorage:', err);
+    const initAuth = async () => {
+      const storedAuth = getStoredAuthSession();
+      if (storedAuth.token) {
+        try {
+          if (storedAuth.user) setUser(storedAuth.user);
+          // Verify with backend
+          const res = await authAPI.me();
+          if (res?.user) {
+            setUser(res.user);
+            setAuthSession(storedAuth.token, res.user);
+          }
+        } catch (err) {
+          console.warn('Stored session invalid or expired:', err.message);
+          clearAuthSession();
+          setUser(null);
+          setAuthPage('login');
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
-  // Load patients when user is authenticated
+  // Listen for unauthorized/expired session events
   useEffect(() => {
-    if (user && patients.length === 0) {
-      loadPatients();
-    }
-  }, [user, patients.length]);
+    const handleUnauthorized = () => {
+      setUser(null);
+      clearAuthSession();
+      setAuthPage('login');
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
+  // patients are loaded reactively by usePatientsQuery — no useEffect needed
 
   // collapse sidebar by default on mobile
   useEffect(() => {
@@ -72,25 +90,7 @@ export default function App() {
     }
   }, [darkMode]);
 
-  const loadPatients = async () => {
-    try {
-      setPageLoading(true);
-      // Fetch first page with 100 limit (can be adjusted)
-      const data = await patientsAPI.getAll(1, 100);
-      // Handle both paginated and simple array responses
-      const patientsList = data.data || data;
-      setPatients(Array.isArray(patientsList) ? patientsList : []);
-      // Update last-synced timestamp on success
-      const now = new Date();
-      setLastSynced(`${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`);
-    } catch (err) {
-      console.error('Failed to load patients:', err);
-      addToast('Failed to load patients', 'error');
-      setPatients([]);
-    } finally {
-      setPageLoading(false);
-    }
-  };
+  // loadPatients() removed — usePatientsQuery() handles reactive data loading from local SQLite
 
   const addToast = (msg, type = 'success') => {
     const id = Date.now();
@@ -110,16 +110,14 @@ export default function App() {
     }
   };
 
-  const handleLogin = (userData) => {
+  const handleLogin = (userData, token) => {
     setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    setAuthSession(token, userData);
   };
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setPatients([]);
+    clearAuthSession();
     setAuthPage('login');
   };
 
@@ -154,7 +152,6 @@ export default function App() {
           toggle={() => setSidebarOpen(s => !s)}
           darkMode={darkMode}
           toggleTheme={() => setDarkMode(!darkMode)}
-          lastSynced={lastSynced}
         />
 
         <div className={`main-content${sidebarOpen ? '' : ' full'}`}>
@@ -164,7 +161,8 @@ export default function App() {
             
             {/* Valid pages */}
             {page === 'home'         && <HomePage         patients={patients} go={go} />}
-            {page === 'patients'     && <PatientPage      patients={patients} setPatients={setPatients} toast={addToast} />}
+            {page === 'patients'     && <PatientPage      patients={patients} toast={addToast} />}
+            {page === 'appointment'  && <AppointmentPage  patients={patients} toast={addToast} />}
             {page === 'prescription' && <PrescriptionPage patients={patients} toast={addToast} />}
             {page === 'refer'        && <ReferPage        patients={patients} toast={addToast} />}
             {page === 'feedback'     && <FeedbackPage     toast={addToast} />}

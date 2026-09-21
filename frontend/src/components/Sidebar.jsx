@@ -1,8 +1,9 @@
 import Ic from './Icons';
 
 export const NAV = [
-  { id: 'home',         label: 'Dashboard',      icon: 'home'  },
+  { id: 'home',         label: 'Dashboard',       icon: 'home'  },
   { id: 'patients',     label: 'Patient Records', icon: 'users' },
+  { id: 'appointment',  label: 'Appointment',     icon: 'pulse' },
   { id: 'prescription', label: 'Prescription',    icon: 'rx'    },
   { id: 'refer',        label: 'Refer Patient',   icon: 'refer' },
   { id: 'feedback',     label: 'Feedback',        icon: 'msg'   },

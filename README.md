@@ -20,6 +20,53 @@ Rural healthcare centers face:
 - Provide quick access to medical history
 - Enable basic clinical decision support
 - Improve operational efficiency in PHCs
+
+---
+
+## 3. Project Structure
+
+The project is strictly organized into clean, focused directories:
+
+```text
+ruralmed/
+├── frontend/             # React + Vite offline-first PWA client
+│   ├── public/           # Static assets (favicons, icons)
+│   ├── src/              # Components, Pages, Services, Hooks, Dexie DB
+│   ├── package.json      # Frontend dependencies & build scripts
+│   └── vite.config.js    # Vite configuration & PWA service worker settings
+│
+├── backend/              # Node.js + Express REST API
+│   ├── controllers/      # Route controllers (prescriptions, etc.)
+│   ├── middleware/       # Auth, rate limiting, logging, error handling
+│   ├── routes/           # Express endpoints (auth, patients, inventory, etc.)
+│   ├── services/         # Third-party integrations (Twilio, SMS, WhatsApp)
+│   ├── utils/            # Validators, helpers, logger
+│   ├── server.js         # Express server entrypoint
+│   └── package.json      # Backend dependencies & scripts
+│
+├── database/             # Dedicated SQLite database module
+│   ├── schema.sql        # Pure SQL schema (tables, foreign keys, indexes)
+│   ├── init.js           # Database connection & schema migration manager
+│   ├── seed.js           # Standalone seed runner for demo data
+│   ├── ruralmed.db       # Primary SQLite database file
+│   ├── package.json      # Database module configuration
+│   └── README.md         # Database documentation & table reference
+│
+├── docs/                 # Architecture, specifications & audit guides
+│   ├── system.md
+│   ├── offline-first-architecture.md
+│   ├── setup-guide.md
+│   ├── quick-reference.md
+│   └── audit-report.md
+│
+├── requirement.txt       # Unified system & dependency specifications
+├── requirements.txt      # Convention alias for requirement.txt
+├── vercel.json           # Vercel deployment configuration
+└── README.md             # Project documentation
+```
+
+---
+
 ## Architecture Diagram
 
 ```

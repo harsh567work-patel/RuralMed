@@ -76,11 +76,11 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const { patientId, drug, dosage, duration, frequency, route, quantity, instructions } = req.body;
 
-    if (!patientId || !drug || !dosage || !duration) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!patientId || !drug) {
+      return res.status(400).json({ error: 'Missing required fields: patient and drug name' });
     }
 
-    // Validate data
+    // Validate data (relaxed — only drug name is truly required)
     const validation = validatePrescription(req.body);
     if (!validation.valid) {
       return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
@@ -98,7 +98,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const result = await run(
       `INSERT INTO prescriptions (patientId, doctorId, drug, dosage, duration, frequency, route, quantity, instructions)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [patientId, req.userId, drug, dosage, duration, frequency || '', route || '', quantity || null, instructions || '']
+      [patientId, req.userId, drug, dosage || '—', duration || '—', frequency || 'OD', route || 'Oral', quantity || null, instructions || '']
     );
 
     const newPrescription = await get(`SELECT * FROM prescriptions WHERE id = ?`, [result.id]);

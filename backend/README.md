@@ -71,6 +71,24 @@ Example deployment settings:
 
 The backend creates `ruralmed.db` automatically by default. If your host uses an ephemeral filesystem, you should set `DB_PATH` to a writable path provided by the platform.
 
+### Build the local database
+
+Run the database initializer locally before deploying if you want a ready demo database:
+
+```bash
+cd backend
+npm install
+npm run db:init
+```
+
+This will create the SQLite database file and seed demo data.
+
 ## Auth
 
-Uses JWT. Include token in header: `Authorization: Bearer <token>`
+Uses JWT. Include token in header: `Authorization: Bearer <token>`.
+
+### Security notes
+- Passwords are hashed with bcrypt before persistence.
+- Login and registration are protected by rate limiting.
+- CSRF tokens are available from `GET /api/auth/csrf-token` for state-changing requests.
+- Google OAuth can be enabled by setting `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI`.

@@ -197,17 +197,21 @@ export function validatePatient(patient) {
 export function validatePrescription(prescription) {
   const errors = [];
 
-  // Validate drug name
+  // Only drug name is strictly required
   const drugValidation = validators.drugName(prescription.drug);
   if (!drugValidation.valid) errors.push(drugValidation.message);
 
-  // Validate dosage
-  const dosageValidation = validators.dosage(prescription.dosage);
-  if (!dosageValidation.valid) errors.push(dosageValidation.message);
+  // Dosage is optional — validate only if provided
+  if (prescription.dosage && prescription.dosage.trim()) {
+    const dosageValidation = validators.dosage(prescription.dosage);
+    if (!dosageValidation.valid) errors.push(dosageValidation.message);
+  }
 
-  // Validate duration
-  const durationValidation = validators.duration(prescription.duration);
-  if (!durationValidation.valid) errors.push(durationValidation.message);
+  // Duration is optional — validate only if provided
+  if (prescription.duration && prescription.duration.trim()) {
+    const durationValidation = validators.duration(prescription.duration);
+    if (!durationValidation.valid) errors.push(durationValidation.message);
+  }
 
   return {
     valid: errors.length === 0,

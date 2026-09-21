@@ -275,6 +275,11 @@ tr:hover td{background:var(--bg)}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--divider);border-radius:3px}
 
+/* Hide number input spinners (qty fields) */
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.qty-input{-moz-appearance:textfield}
+
 /* SECTION */
 .sl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--gray-lt);margin-bottom:12px}
 .st{font-size:16px;font-weight:800;color:var(--navy);letter-spacing:-.3px;display:flex;align-items:center;gap:8px}

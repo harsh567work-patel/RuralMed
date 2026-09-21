@@ -6,6 +6,19 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // Switch to injectManifest so we control the SW source.
+      // generateSW mode runs its own Rollup over node_modules which conflicts
+      // with @powersync/web's dynamic-import workers (can't use iife format).
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+
+      // CRITICAL: Override the default 'iife' SW output format to 'es'.
+      // @powersync/web uses dynamic import() in its worker files. Rollup rejects
+      // iife format the moment any file in the input set has a dynamic import().
+      // 'es' format supports code-splitting and dynamic imports.
+      rollupFormat: 'es',
+
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt'],
       manifest: {
@@ -58,65 +71,47 @@ export default defineConfig({
         ],
       },
 
-      // Workbox configuration for offline caching
-      workbox: {
-        // Cache strategies
-        runtimeCaching: [
-          // API calls: network-first with fallback
-          {
-            urlPattern: /^http:\/\/localhost:5000\/api\/.*$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 5 * 60, // 5 minutes
-              },
-              networkTimeoutSeconds: 10,
-            },
-          },
-
-          // Images: cache-first
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'image-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-              },
-            },
-          },
-
-          // Fonts: cache-first
-          {
-            urlPattern: /\.(?:woff|woff2|ttf|eot)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'font-cache',
-              expiration: {
-                maxEntries: 30,
-                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-              },
-            },
-          },
-
-          // Documents (HTML, CSS, JS): stale-while-revalidate
-          {
-            urlPattern: /\.(?:html|css|js)$/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'static-cache',
-            },
-          },
+      // injectManifest config — controls which assets get precached
+      injectManifest: {
+        // Exclude PowerSync worker files and WASM from the Workbox precache manifest.
+        globIgnores: [
+          '**/node_modules/**/*',
+          '**/@powersync/**/*',
+          '**/worker/**/*',
+          '**/*.wasm',
         ],
+        // Only precache our own app shell assets
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
 
-        // Clean up old caches
-        cleanupOutdatedCaches: true,
-
-        // Disable devtools in production
-        disableDevLogs: true,
+        // Stub @powersync imports during the SW Rollup build via alias.
+        // The SW (src/sw.js) doesn't import @powersync directly, but Workbox's
+        // module resolution can transitively pull in @powersync worker files.
+        // By aliasing to a virtual empty module, we prevent those files from
+        // ever entering the Rollup input graph.
+        rollupOptions: {
+          plugins: [
+            {
+              name: 'stub-powersync-in-sw',
+              resolveId(source) {
+                if (source.includes('@powersync') || source.includes('powersync')) {
+                  // Return a virtual module ID
+                  return '\0virtual:powersync-stub';
+                }
+                return null;
+              },
+              load(id) {
+                if (id === '\0virtual:powersync-stub') {
+                  return 'export default {};';
+                }
+                // Also intercept the file path directly in case it's loaded by path
+                if (id.includes('@powersync') || id.includes('node_modules/@powersync')) {
+                  return 'export default {};';
+                }
+                return null;
+              },
+            },
+          ],
+        },
       },
 
       // Dev options
@@ -128,7 +123,39 @@ export default defineConfig({
     }),
   ],
 
+  // ── Build config ───────────────────────────────────────────────────────────
+  build: {
+    rollupOptions: {
+      // Treat @powersync/web's pre-built worker files as external assets.
+      external: [/@powersync\/web\/dist\/worker/],
+    },
+  },
+
+  // ── Worker build config ────────────────────────────────────────────────────
+  // @powersync/web registers Web Workers via new Worker(url, {type: 'module'}).
+  // Vite picks these up as worker entries and defaults to 'iife' format.
+  // Setting 'es' format supports dynamic imports used by PowerSync workers.
+  worker: {
+    format: 'es',
+  },
+
+  // ── Dependency optimisation ────────────────────────────────────────────────
+  optimizeDeps: {
+    // Exclude @powersync/web from Vite's pre-bundling.
+    exclude: ['@powersync/web'],
+  },
+
   server: {
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: ['.ngrok-free.dev'],
+    // COOP + COEP are required for SharedArrayBuffer, which the PowerSync
+    // WASM SQLite worker depends on. Without these, the OPFS backend will
+    // fail with a "SharedArrayBuffer is not defined" error.
+    headers: {
+      'Cross-Origin-Opener-Policy':   'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

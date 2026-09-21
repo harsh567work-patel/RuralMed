@@ -1,0 +1,105 @@
+# =============================================================================
+# RuralMed — Complete Project Requirements Specification
+# Offline-First Rural Healthcare Management System
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. System & Runtime Prerequisites
+# -----------------------------------------------------------------------------
+# - Node.js: >= 18.0.0 (Recommended: LTS v20.x or v22.x)
+# - npm: >= 9.0.0 (or yarn >= 1.22.x / pnpm >= 8.x)
+# - SQLite: >= 3.35.0 (Bundled via sqlite3 Node binding, CLI optional)
+# - Git: >= 2.30.0
+# - Target Browsers: Chrome 90+, Edge 90+, Firefox 90+, Safari 15+ (Requires IndexedDB, Web Workers, PWA/ServiceWorker support)
+
+# -----------------------------------------------------------------------------
+# 2. Backend Dependencies (Node.js / Express)
+# Location: ./backend/package.json
+# -----------------------------------------------------------------------------
+express==4.18.2              # Fast, unopinionated minimalist web framework for Node.js
+sqlite3==5.1.6               # Asynchronous, non-blocking SQLite3 bindings
+jsonwebtoken==9.0.3          # JSON Web Token implementation for user authentication
+bcryptjs==2.4.3              # Optimized bcrypt password hashing library
+cors==2.8.5                  # Middleware to enable Cross-Origin Resource Sharing
+dotenv==16.0.3               # Loads environment variables from .env file
+express-rate-limit==8.3.1    # Rate limiting middleware to prevent brute-force attacks
+twilio==6.1.0                # Twilio SDK for SMS alerts and WhatsApp clinical notifications
+
+# -----------------------------------------------------------------------------
+# 3. Frontend Dependencies (React / Vite PWA)
+# Location: ./frontend/package.json
+# -----------------------------------------------------------------------------
+react==18.3.1                # React core JavaScript library for building user interfaces
+react-dom==18.3.1            # React package for working with the DOM
+dexie==4.0.0                 # Minimalistic IndexedDB wrapper for offline patient storage
+esc-pos-encoder==3.0.0       # Thermal POS printer bytecode generation for prescriptions
+uuid==11.1.1                 # Cryptographically secure UUID generator for offline patient IDs
+@powersync/react==2.0.1      # Offline-first SQLite sync framework (React hooks)
+@powersync/web==2.3.0        # PowerSync client library for Web & OPFS/IndexedDB
+
+# Frontend Development Dependencies
+vite==5.4.8                  # Next generation frontend tooling & development server
+@vitejs/plugin-react==4.3.1  # Official Babel/React Fast Refresh plugin for Vite
+vite-plugin-pwa==1.3.0       # Progressive Web App plugin with Workbox service worker caching
+ngrok==5.0.0-beta.2          # Reverse proxy tool to expose local development server for testing
+
+# -----------------------------------------------------------------------------
+# 4. Database Specifications
+# Location: ./database/
+# -----------------------------------------------------------------------------
+# Engine: SQLite 3
+# File Path: ./database/ruralmed.db
+# Client Storage: Browser IndexedDB via Dexie (Offline-First cache)
+# Features Required:
+#   - PRAGMA foreign_keys = ON;
+#   - Auto-increment primary keys
+#   - ISO 8601 UTC DATETIME formatting
+#   - Multi-column performance indexing
+# Core Tables:
+#   - users         (Healthcare staff accounts, authentication & RBAC)
+#   - patients      (Patient demographics, village tracking & vital signs)
+#   - prescriptions (Prescription details, dosage, duration & doctor FK)
+#   - referrals     (Patient referral tracking to tertiary health centers)
+#   - inventory     (PHC medicine stock, unit metrics & low-stock alerts)
+#   - feedback      (User and patient satisfaction feedback)
+#   - audit_logs    (Security & HIPAA clinical action audit trail)
+
+# -----------------------------------------------------------------------------
+# 5. Environment Variables Configuration
+# -----------------------------------------------------------------------------
+# Backend (.env located in ./backend/.env):
+#   PORT=5000
+#   NODE_ENV=development
+#   DB_PATH=../database/ruralmed.db
+#   JWT_SECRET=your_super_secret_jwt_key_here
+#   FRONTEND_URL=http://localhost:5173
+#   TWILIO_ACCOUNT_SID=your_twilio_sid (optional)
+#   TWILIO_AUTH_TOKEN=your_twilio_token (optional)
+#   TWILIO_PHONE_NUMBER=your_twilio_number (optional)
+#   TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886 (optional)
+#
+# Frontend (.env located in ./frontend/.env):
+#   VITE_API_URL=http://localhost:5000/api
+
+# -----------------------------------------------------------------------------
+# 6. Installation & Execution Commands
+# -----------------------------------------------------------------------------
+# Step 1: Install backend dependencies
+#   cd backend
+#   npm install
+#
+# Step 2: Install frontend dependencies
+#   cd ../frontend
+#   npm install
+#
+# Step 3: Initialize and seed the database
+#   cd ..
+#   node database/seed.js
+#
+# Step 4: Run backend server (Port 5000)
+#   cd backend
+#   npm start
+#
+# Step 5: Run frontend development server (Port 5173)
+#   cd frontend
+#   npm run dev

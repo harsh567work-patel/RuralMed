@@ -18,6 +18,7 @@ import referralRoutes from './routes/referrals.js';
 import feedbackRoutes from './routes/feedback.js';
 import inventoryRoutes from './routes/inventory.js';
 import statsRoutes from './routes/stats.js';
+import notifyRoutes from './routes/notify.js';
 
 if (!process.env.JWT_SECRET) {
   console.error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
@@ -28,11 +29,23 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+app.set('trust proxy', 1);
+
 // Middleware
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(requestLogger);
+
+if (process.env.ENFORCE_HTTPS === 'true') {
+  app.use((req, res, next) => {
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    if (req.secure || forwardedProto === 'https') {
+      return next();
+    }
+    return res.status(403).json({ error: 'HTTPS is required for this application' });
+  });
+}
 
 // Apply general API rate limiter
 app.use('/api/', apiLimiter);
@@ -49,6 +62,7 @@ app.use('/api/referrals', referralRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/notify', notifyRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

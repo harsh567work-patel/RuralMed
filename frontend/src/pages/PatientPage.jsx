@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import Ic from '../components/Icons';
 import { TODAY_ISO } from '../data/mockData';
-import { patients as patientsAPI } from '../services/api';
+import { usePowerSync } from '@powersync/react';
+import { insertPatient } from '../db/patientMutations';
+import PatientHistoryModal from '../components/PatientHistoryModal';
 
 const EMPTY_FORM = {
   name: '', age: '', dob: '', gender: 'Female', village: '', district: '',
@@ -63,7 +65,8 @@ function VitalAlert({ type, label }) {
   );
 }
 
-export default function PatientPage({ patients, setPatients, toast }) {
+export default function PatientPage({ patients, toast }) {
+  const db = usePowerSync();
   const [tab, setTab] = useState('list');
   const [q, setQ] = useState('');
   const [f, sf] = useState(EMPTY_FORM);
@@ -71,6 +74,7 @@ export default function PatientPage({ patients, setPatients, toast }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [vitalErrors, setVitalErrors] = useState({});
   const [vitalAlerts, setVitalAlerts] = useState({});
+  const [viewPatient, setViewPatient] = useState(null);
   const dropdownRef = useRef(null);
 
   const set = k => e => {
@@ -134,33 +138,14 @@ export default function PatientPage({ patients, setPatients, toast }) {
 
     try {
       setLoading(true);
-      const genderMap = { 'Female': 'Female', 'Male': 'Male', 'Transgender': 'Other' };
-      const normalizedGender = genderMap[f.gender] || f.gender;
 
-      const response = await patientsAPI.create({
-        name: f.name,
-        age: parseInt(f.age),
-        gender: normalizedGender,
-        village: f.village || '—',
-        phone: f.phone || '—',
-        diagnosis: f.dx || 'Under Assessment',
-        weight: f.weight ? parseFloat(f.weight) : null,
-        bpSystolic: f.bp_s ? parseInt(f.bp_s) : null,
-        bpDiastolic: f.bp_d ? parseInt(f.bp_d) : null,
-        temperature: f.temp ? parseFloat(f.temp) : null,
-        respiratoryRate: f.pulse ? parseInt(f.pulse) : null,
-        notes: [
-          f.notes,
-          f.allergies ? `Allergies: ${f.allergies}` : '',
-          f.comorbid   ? `Comorbidities: ${f.comorbid}` : '',
-          f.abha       ? `ABHA: ${f.abha}` : '',
-          f.district   ? `District: ${f.district}` : '',
-        ].filter(Boolean).join('\n') || '',
-      });
+      // Write directly to local SQLite — works offline.
+      // PowerSync automatically queues this for background sync to PostgreSQL.
+      const newId = await insertPatient(db, f);
 
-      const patientId = response.data.id;
-      toast(`Patient ${patientId} — ${f.name} registered.`, 'success');
-      setPatients(prev => [...prev, response.data]);
+      // No need to call setPatients() — usePatientsQuery() in App.jsx
+      // listens to SQLite changes and re-renders reactively.
+      toast(`Patient ${newId.slice(0, 8).toUpperCase()} — ${f.name} registered.`, 'success');
       sf(EMPTY_FORM);
       setVitalErrors({});
       setVitalAlerts({});
@@ -195,7 +180,7 @@ export default function PatientPage({ patients, setPatients, toast }) {
   };
 
   return (
-    <div>
+    <>
       <div className="ph">
         <div><h1>Patient Records</h1><p>Register, search and manage all patient visits at this PHC</p></div>
         <div className="ph-act">
@@ -244,7 +229,16 @@ export default function PatientPage({ patients, setPatients, toast }) {
                       <td style={{ fontSize: 12, color: 'var(--gray)' }}>{p.lastVisit || '—'}</td>
                       <td className="f13">{p.diagnosis}</td>
                       <td><span className={`badge ${p.status === 'Active' ? 'bg-g' : p.status === 'Referred' ? 'bg-y' : 'bg-b'}`}>{p.status}</span></td>
-                      <td><button className="btn btn-ghost btn-icon"><Ic n="eye" s={14} /></button></td>
+                      <td>
+                        <button
+                          className="btn btn-ghost btn-icon"
+                          title="View patient history"
+                          onClick={() => setViewPatient(p)}
+                          style={{ color: 'var(--teal)' }}
+                        >
+                          <Ic n="eye" s={14} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -357,6 +351,14 @@ export default function PatientPage({ patients, setPatients, toast }) {
           </div>
         </div>
       )}
-    </div>
+
+      {/* ── Patient History Modal ── */}
+      {viewPatient && (
+        <PatientHistoryModal
+          patient={viewPatient}
+          onClose={() => setViewPatient(null)}
+        />
+      )}
+    </>
   );
 }

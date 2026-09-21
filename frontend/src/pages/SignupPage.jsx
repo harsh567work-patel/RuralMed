@@ -1,13 +1,29 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Ic from '../components/Icons';
 import { auth } from '../services/api';
 
 export default function SignupPage({ onSignup, goLogin }) {
   const [f, sf] = useState({ username: '', name: '', email: '', facility: '', role: 'doctor', pw: '', confirm: '' });
   const [err, se] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
   const [pwStrength, setPwStrength] = useState(0);
-  
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      const payload = event.data || {};
+      if (payload.type === 'google-oauth-success') {
+        onSignup(payload.user, payload.token);
+      }
+      if (payload.type === 'google-oauth-error') {
+        se(payload.message || 'Google sign-in failed.');
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onSignup]);
+
   const set = k => e => sf(p => ({ ...p, [k]: e.target.value }));
 
   const getPasswordStrength = (password) => {
@@ -28,49 +44,48 @@ export default function SignupPage({ onSignup, goLogin }) {
 
   const go = async () => {
     se('');
-    
-    if (!f.username || !f.name || !f.email || !f.facility || !f.pw) { 
+    setNotice('');
+
+    if (!f.username || !f.name || !f.email || !f.facility || !f.pw) {
       se('All fields are required.');
-      return; 
+      return;
     }
-    
+
     if (f.username.length < 3) {
       se('Username must be at least 3 characters.');
       return;
     }
-    
+
     if (!f.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       se('Please enter a valid email address.');
       return;
     }
-    
-    if (f.pw.length < 6) {
-      se('Password must be at least 6 characters.');
+
+    if (f.pw.length < 8 || !/[A-Z]/.test(f.pw) || !/[0-9]/.test(f.pw) || /[^A-Za-z0-9]/.test(f.pw) === false) {
+      se('Password must be at least 8 characters and include uppercase, number, and a symbol.');
       return;
     }
-    
-    if (f.pw !== f.confirm) { 
+
+    if (f.pw !== f.confirm) {
       se('Passwords do not match.');
-      return; 
+      return;
     }
-    
+
     try {
       setLoading(true);
-      const res = await auth.register({ 
-        username: f.username, 
-        password: f.pw, 
-        email: f.email, 
-        name: f.name, 
-        facility: f.facility, 
-        role: f.role 
+      const res = await auth.register({
+        username: f.username,
+        password: f.pw,
+        email: f.email,
+        name: f.name,
+        facility: f.facility,
+        role: f.role
       });
-      localStorage.setItem('token', res.token);
-      onSignup(res.user);
+      onSignup(res.user, res.token);
     } catch (err) {
       const errorMsg = err?.message || 'Failed to create account. Please try again.';
       console.error('[SIGNUP ERROR]', errorMsg);
-      
-      // Provide friendly error messages
+
       if (errorMsg.includes('Email exists')) {
         se('This email is already registered. Please sign in instead.');
       } else if (errorMsg.includes('Username exists')) {
@@ -85,11 +100,31 @@ export default function SignupPage({ onSignup, goLogin }) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    se('');
+    setNotice('');
+    try {
+      setLoading(true);
+      const { authUrl } = await auth.googleOAuth();
+      const popup = window.open(authUrl, 'googleOAuth', 'width=560,height=700,scrollbars=yes');
+      if (!popup) {
+        se('Please allow popups to continue with Google sign-in.');
+      }
+    } catch (error) {
+      se(error?.message || 'Google sign-in could not be started.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !loading) {
       go();
     }
   };
+
+  const strengthLabel = pwStrength < 2 ? 'Weak' : pwStrength < 4 ? 'Medium' : 'Strong';
+  const strengthColor = pwStrength < 2 ? '#e74c3c' : pwStrength < 4 ? '#f39c12' : '#27ae60';
 
   return (
     <div className="auth-wrap">
@@ -124,6 +159,7 @@ export default function SignupPage({ onSignup, goLogin }) {
           <div className="auth-box-sub">Register yourself and your PHC to get started</div>
 
           {err && <div className="alert alert-danger">{err}</div>}
+          {notice && <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(39,174,96,.12)', color: '#2e7d32', fontSize: 12.5, marginBottom: 10 }}>{notice}</div>}
 
           <div className="field-row">
             <div className="field"><label>Username</label><input placeholder="your.username" value={f.username} onChange={set('username')} onKeyPress={handleKeyPress} disabled={loading} autoFocus /></div>
@@ -149,8 +185,11 @@ export default function SignupPage({ onSignup, goLogin }) {
               <label>Password</label>
               <input type="password" placeholder="Create password" value={f.pw} onChange={handlePasswordChange} onKeyPress={handleKeyPress} disabled={loading} />
               {f.pw && (
-                <div style={{ fontSize: 11, marginTop: 4, color: pwStrength < 2 ? '#e74c3c' : pwStrength < 4 ? '#f39c12' : '#27ae60' }}>
-                  Strength: {pwStrength < 2 ? 'Weak' : pwStrength < 4 ? 'Medium' : 'Strong'}
+                <div style={{ fontSize: 11, marginTop: 6, color: strengthColor }}>
+                  <div style={{ height: 6, borderRadius: 999, background: '#e9ecef', overflow: 'hidden', marginBottom: 4 }}>
+                    <div style={{ width: `${Math.min(100, (pwStrength / 5) * 100)}%`, height: '100%', background: strengthColor, transition: 'width 0.2s ease' }} />
+                  </div>
+                  Strength: {strengthLabel}
                 </div>
               )}
             </div>
@@ -158,6 +197,9 @@ export default function SignupPage({ onSignup, goLogin }) {
           </div>
 
           <button className="btn btn-primary btn-full" style={{ marginTop: 8 }} onClick={go} disabled={loading}>{loading ? 'Creating Account...' : 'Create Account'}</button>
+          <button className="btn btn-full" style={{ marginTop: 10, background: 'white', color: '#1f2937', border: '1px solid rgba(0,0,0,.08)', fontWeight: 700 }} onClick={handleGoogleSignIn} disabled={loading}>
+            {loading ? 'Preparing...' : 'Continue with Google'}
+          </button>
           <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13.5, color: 'var(--gray)', fontWeight: 500 }}>
             Already registered?{' '}
             <span style={{ color: 'var(--teal)', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 700, opacity: loading ? 0.5 : 1 }} onClick={() => !loading && goLogin()}>Sign In</span>

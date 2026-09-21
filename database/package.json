@@ -1,0 +1,9 @@
+{
+  "name": "ruralmed-database",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "RuralMed SQLite database module and seed scripts",
+  "scripts": {
+    "seed": "node seed.js"
+  }
+}

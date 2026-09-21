@@ -4,18 +4,24 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev":     "vite",
-    "build":   "vite build",
-    "preview": "vite preview"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "ngrok": "npx ngrok http 5173"
   },
   "dependencies": {
-    "dexie":     "^4.0.0",
-    "react":     "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@powersync/react": "^2.0.1",
+    "@powersync/web": "^2.3.0",
+    "dexie": "^4.0.0",
+    "esc-pos-encoder": "^3.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
-    "vite":                 "^5.4.8",
-    "vite-plugin-pwa":      "^0.18.0"
+    "ngrok": "^5.0.0-beta.2",
+    "vite": "^5.4.8",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

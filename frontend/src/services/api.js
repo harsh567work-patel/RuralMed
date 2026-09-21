@@ -1,6 +1,92 @@
 // API service for communicating with backend
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
+// Use explicit VITE_API_BASE when provided, otherwise use relative paths to support ngrok and local proxying.
+const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== 'undefined' ? '/api' : 'http://localhost:5000/api');
 const REQUEST_TIMEOUT = 10000; // 10 seconds
+let csrfTokenPromise = null;
+
+function getStoredItem(key) {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.sessionStorage.getItem(key) || window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredItem(key, value) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(key, value);
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures and keep the session alive in memory.
+  }
+}
+
+function removeStoredItem(key) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(key);
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+export function setAuthSession(token, user) {
+  if (token) {
+    setStoredItem('token', token);
+  } else {
+    removeStoredItem('token');
+  }
+
+  if (user) {
+    setStoredItem('user', JSON.stringify(user));
+  } else {
+    removeStoredItem('user');
+  }
+}
+
+export function getStoredAuthSession() {
+  const token = getStoredItem('token');
+  const userRaw = getStoredItem('user');
+  let user = null;
+
+  if (userRaw) {
+    try {
+      user = JSON.parse(userRaw);
+    } catch {
+      removeStoredItem('user');
+    }
+  }
+
+  return { token, user };
+}
+
+export function clearAuthSession() {
+  removeStoredItem('token');
+  removeStoredItem('user');
+}
+
+async function ensureCsrfToken() {
+  if (typeof window === 'undefined') return null;
+  if (csrfTokenPromise) {
+    return csrfTokenPromise;
+  }
+
+  csrfTokenPromise = fetch(`${API_BASE}/auth/csrf-token`, {
+    credentials: 'include',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  })
+    .then(async (response) => {
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.csrfToken || null;
+    })
+    .catch(() => null);
+
+  return csrfTokenPromise;
+}
 
 /**
  * Make API call with timeout and error handling
@@ -10,18 +96,28 @@ export async function apiCall(method, endpoint, body = null, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), options.timeout || REQUEST_TIMEOUT);
 
   try {
-    const fetchOptions = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      signal: controller.signal,
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
     };
 
-    // Add token if available
-    const token = localStorage.getItem('token');
+    const fetchOptions = {
+      method,
+      headers,
+      signal: controller.signal,
+      credentials: 'include',
+    };
+
+    const token = getStoredItem('token');
     if (token) {
-      fetchOptions.headers['Authorization'] = `Bearer ${token}`;
+      fetchOptions.headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      const csrfToken = await ensureCsrfToken();
+      if (csrfToken) {
+        fetchOptions.headers['X-CSRF-Token'] = csrfToken;
+      }
     }
 
     if (body) {
@@ -30,23 +126,34 @@ export async function apiCall(method, endpoint, body = null, options = {}) {
 
     const url = `${API_BASE}${endpoint}`;
     console.log(`[API] ${method} ${url}`);
-    
+
     const response = await fetch(url, fetchOptions);
-    
+
     if (!response.ok) {
-      let errorData;
+      let errorData = {};
       try {
-        errorData = await response.json();
+        const rawText = await response.text();
+        try {
+          errorData = JSON.parse(rawText);
+        } catch {
+          errorData = { error: rawText || `HTTP ${response.status}` };
+        }
       } catch (e) {
-        // If response isn't JSON, try to get text
-        const text = await response.text();
-        console.error(`[API ERROR] Response not JSON:`, text);
-        errorData = { error: text || `HTTP ${response.status}` };
+        errorData = { error: `HTTP ${response.status}` };
       }
-      
+
       const errorMsg = errorData.error || errorData.message || `HTTP ${response.status}`;
       console.error(`[API ERROR] ${method} ${url} - ${errorMsg}`);
-      
+
+      // Handle 401 Unauthorized token errors automatically
+      if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
+        console.warn(`[AUTH] Session expired or invalid token (${errorMsg}), clearing auth session.`);
+        clearAuthSession();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:unauthorized', { detail: { message: errorMsg } }));
+        }
+      }
+
       const err = new Error(errorMsg);
       err.status = response.status;
       err.errors = errorData.errors;
@@ -62,8 +169,7 @@ export async function apiCall(method, endpoint, body = null, options = {}) {
       console.error(`[API TIMEOUT]`, msg);
       throw new Error(msg);
     }
-    if (err instanceof TypeError) {
-      // Network error - backend probably not running
+    if (err instanceof TypeError && (err.message.includes('fetch') || err.message.includes('NetworkError'))) {
       const msg = `Cannot reach server at ${API_BASE}. Make sure backend is running on port 5000.`;
       console.error(`[API NETWORK ERROR]`, err.message);
       throw new Error(msg);
@@ -77,8 +183,13 @@ export async function apiCall(method, endpoint, body = null, options = {}) {
 
 // Auth
 export const auth = {
+  me: () => apiCall('GET', '/auth/me'),
   register: (data) => apiCall('POST', '/auth/register', data),
   login: (data) => apiCall('POST', '/auth/login', data),
+  googleOAuth: () => apiCall('GET', '/auth/google'),
+  requestPasswordReset: (email) => apiCall('POST', '/auth/request-password-reset', { email }),
+  resetPassword: (data) => apiCall('POST', '/auth/reset-password', data),
+  getPowerSyncToken: () => apiCall('GET', '/auth/powersync-token'), // Used by PowerSync connector
 };
 
 // Patients

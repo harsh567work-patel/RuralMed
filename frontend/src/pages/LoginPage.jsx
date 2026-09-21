@@ -1,36 +1,51 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Ic from '../components/Icons';
 import { auth } from '../services/api';
 
 export default function LoginPage({ onLogin, goSignup }) {
   const [f, sf] = useState({ username: '', pw: '' });
   const [err, se] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      const payload = event.data || {};
+      if (payload.type === 'google-oauth-success') {
+        onLogin(payload.user, payload.token);
+      }
+      if (payload.type === 'google-oauth-error') {
+        se(payload.message || 'Google sign-in failed. Please try again.');
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onLogin]);
 
   const go = async () => {
-    // Clear previous errors
     se('');
-    
-    if (!f.username || !f.pw) { 
+    setNotice('');
+
+    if (!f.username || !f.pw) {
       se('Please enter both username and password.');
-      return; 
+      return;
     }
-    
+
     if (f.username.length < 3) {
       se('Username must be at least 3 characters.');
       return;
     }
-    
+
     try {
       setLoading(true);
       const res = await auth.login({ username: f.username, password: f.pw });
-      localStorage.setItem('token', res.token);
-      onLogin(res.user);
+      onLogin(res.user, res.token);
     } catch (error) {
       const errorMsg = error?.message || 'Failed to sign in. Please try again.';
       console.error('[LOGIN ERROR]', errorMsg);
-      
-      // Provide friendly error messages
+
       if (errorMsg.includes('User not found')) {
         se('Username not found. Please check and try again.');
       } else if (errorMsg.includes('incorrect')) {
@@ -42,6 +57,38 @@ export default function LoginPage({ onLogin, goSignup }) {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    se('');
+    setNotice('');
+    try {
+      setLoading(true);
+      const { authUrl } = await auth.googleOAuth();
+      const popup = window.open(authUrl, 'googleOAuth', 'width=560,height=700,scrollbars=yes');
+      if (!popup) {
+        se('Please allow popups to continue with Google sign-in.');
+      }
+    } catch (error) {
+      se(error?.message || 'Google sign-in could not be started.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const email = window.prompt('Enter the email address linked to your RuralMed account');
+    if (!email) return;
+
+    try {
+      setResetLoading(true);
+      await auth.requestPasswordReset(email);
+      setNotice('If an account exists, a secure reset link has been sent to your email.');
+    } catch (error) {
+      se(error?.message || 'Password reset could not be started.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -77,6 +124,7 @@ export default function LoginPage({ onLogin, goSignup }) {
           <div className="auth-box-sub">Enter your credentials to access the clinical dashboard</div>
 
           {err && <div className="alert alert-danger">{err}</div>}
+          {notice && <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(39,174,96,.12)', color: '#2e7d32', fontSize: 12.5, marginBottom: 10 }}>{notice}</div>}
 
           <div className="field">
             <label>Username</label>
@@ -107,6 +155,34 @@ export default function LoginPage({ onLogin, goSignup }) {
           <button className="btn btn-primary btn-full" style={{ marginTop: 8 }} onClick={go} disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+
+          <button 
+            type="button"
+            className="btn btn-full" 
+            style={{ marginTop: 10, background: 'rgba(13, 148, 136, 0.08)', color: 'var(--teal)', border: '1px solid rgba(13, 148, 136, 0.25)', fontWeight: 600 }} 
+            onClick={() => {
+              sf({ username: 'demo_doctor', pw: 'demo123' });
+              setLoading(true);
+              auth.login({ username: 'demo_doctor', password: 'demo123' })
+                .then(res => onLogin(res.user, res.token))
+                .catch(err => se(err.message || 'Demo login failed'))
+                .finally(() => setLoading(false));
+            }} 
+            disabled={loading}
+          >
+            ⚡ One-Click Demo Doctor Login (Dr. Ananya Sharma)
+          </button>
+
+          <button className="btn btn-full" style={{ marginTop: 10, background: 'white', color: '#1f2937', border: '1px solid rgba(0,0,0,.08)', fontWeight: 700 }} onClick={handleGoogleSignIn} disabled={loading}>
+            {loading ? 'Preparing...' : 'Sign in with Google'}
+          </button>
+
+          <p style={{ textAlign: 'center', marginTop: 12, fontSize: 12.5, color: 'var(--gray)', fontWeight: 600 }}>
+            <span style={{ color: 'var(--teal)', cursor: resetLoading ? 'not-allowed' : 'pointer', opacity: resetLoading ? 0.6 : 1 }} onClick={() => !resetLoading && handlePasswordReset()}>
+              {resetLoading ? 'Sending reset...' : 'Forgot password?'}
+            </span>
+          </p>
+
           <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13.5, color: 'var(--gray)', fontWeight: 500 }}>
             New to RuralMed?{' '}
             <span style={{ color: 'var(--teal)', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 700, opacity: loading ? 0.5 : 1 }} onClick={() => !loading && goSignup()}>
