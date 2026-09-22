@@ -1,0 +1,30 @@
+services:
+  # ──────────────────────────────────────────────
+  # Backend — Node/Express API
+  # ──────────────────────────────────────────────
+  - type: web
+    name: ruralmed-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: NODE_ENV
+        value: production
+      # Add the rest of your env vars in the Render dashboard
+      # (DATABASE_URL, JWT_SECRET, TWILIO_*, etc.)
+
+  # ──────────────────────────────────────────────
+  # Frontend — Vite / React (static site)
+  # ──────────────────────────────────────────────
+  - type: web
+    name: ruralmed-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: 18
